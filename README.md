@@ -2,7 +2,7 @@
 An interpreted toy language with minimal syntax.
 
 ## Syntax
-The syntax only consists of a small set of symbols $\Sigma=\\{${ $, $} $, $( $, $) $, $=> $, $` $\\}$.
+The syntax only consists of a small set of symbols $\Sigma=\\{$ { $, $} $, $( $, $) $, $=> $, $` $\\}$.
 Everything in stasis is either a function or a number.
  ### Expressions
 All expressions in stasis consist of function calls and values. Values are number literals or function definitions (see below).
