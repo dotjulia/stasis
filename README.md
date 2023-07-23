@@ -99,17 +99,48 @@ Defining functions with `let` is also possible:
 }
 ```
 ### `if`
-`If` takes two parameters. The first one is a value or a function and the second one a function. It calls the first one if it is a function and executes the second function if the return value is not 0.
+`If` takes three parameters. The first one is a value or a function and the second one a function. It calls the first one if it is a function and executes the second function if the return value is not 0 and the third otherwise.
 ```
 {
   let { =; } {a0 a1 => not (a0 `- a1);};
   let { a; } 4;
   if (a `= 4) {
     print 5;
-  };
+  } { 0; };
   if {a `= 5;} {
     print 4;
-  };
+  } { 0; };
   print a;
 } // Number(5), Number(4)
+```
+
+### `bind`
+References in stasis are evaluated once a function is executed. This means that a function only has access to it's parameters and nothing else if it's executed in a completely different context from where it was created.
+```
+{
+  let {a;} { a0 => { a0;};}; // a is a function (with param a0) which returns a function which returns a0
+  a 12 0; // Error
+}
+```
+(a 12); -> function which returns a0. (a 12) 0; -> Err(UndefinedFunctionReference("a0")) because { a0; } is executed in a context where a0 doesn't exist
+
+```
+{
+  let {a;} { a0 => bind {a0;} { a0;};}; 
+  a 12 0; // 12
+}
+```
+The value 12 is bound to a0 for function a. The first parameter for bind is a list of variables to bind and the second one is the function.
+For example let's look at an implementation of `tuple`. Which returns a function that returns either of two values based on it's parameter.
+```
+{
+  let { tuple; } { a0 a1 => 
+    bind { a0; a1; } { i =>
+      if { i; } { a1; } { a0; };
+    };
+  };
+  let { ab; } (tuple 12 24);
+  print (ab 0); // 12
+  print (ab 1); // 24
+}
 ```

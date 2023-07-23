@@ -1,5 +1,5 @@
 use crate::ast_parser::{FunctionDef, ProgramAST};
-use std::{collections::LinkedList, fmt::Debug};
+use std::{collections::LinkedList, fmt::Debug, rc::Rc};
 
 #[derive(Clone)]
 pub enum InterpreterFunctionDef {
@@ -51,6 +51,7 @@ impl InterpreterFunctionDef {
 #[derive(Debug, Clone)]
 pub struct ValueFunction {
     pub func: InterpreterFunctionDef,
+    pub bound_context: Vec<(String, Value)>,
     pub bound_variables: Vec<Value>,
 }
 
@@ -65,6 +66,7 @@ pub struct FunctionContext(pub Vec<(String, Value)>);
 pub struct InterpreterContext {
     builtins: Vec<InterpreterFunctionDef>,
     pub function_context: LinkedList<FunctionContext>,
+    pub state: Box<dyn std::any::Any>,
 }
 
 #[derive(Debug)]
@@ -81,6 +83,7 @@ impl InterpreterContext {
         Self {
             builtins: vec![],
             function_context: LinkedList::new(),
+            state: Box::new(()),
         }
     }
 
@@ -143,9 +146,9 @@ impl InterpreterContext {
                 arg_count,
                 func: builtin_func,
             } => builtin_func(self, func.bound_variables),
-            InterpreterFunctionDef::FunctionDef { name, def } => self.run_func(
-                def.clone(),
-                func.bound_variables
+            InterpreterFunctionDef::FunctionDef { name, def } => self.run_func(def.clone(), {
+                let mut vars = func
+                    .bound_variables
                     .iter()
                     .enumerate()
                     .map(|(i, e)| {
@@ -157,8 +160,10 @@ impl InterpreterContext {
                             e.clone(),
                         )
                     })
-                    .collect(),
-            ),
+                    .collect::<Vec<(String, Value)>>();
+                vars.append(&mut func.bound_context);
+                vars
+            }),
         }
     }
 
@@ -170,6 +175,7 @@ impl InterpreterContext {
                     Value::Number(n) => Err(RuntimeError::ValueNotAFunction(n)),
                     Value::Function(ValueFunction {
                         func,
+                        mut bound_context,
                         mut bound_variables,
                     }) => {
                         match func {
@@ -177,9 +183,8 @@ impl InterpreterContext {
                                 bound_variables.push(self.run(*arg)?);
                                 if bound_variables.len() >= func.arg_tokens.len() {
                                     // call
-                                    self.run_func(
-                                        func.clone(),
-                                        bound_variables
+                                    self.run_func(func.clone(), {
+                                        let mut vars: Vec<(String, Value)> = bound_variables
                                             .iter()
                                             .enumerate()
                                             .map(|(i, e)| {
@@ -190,10 +195,13 @@ impl InterpreterContext {
                                                     e.clone(),
                                                 )
                                             })
-                                            .collect(),
-                                    )
+                                            .collect();
+                                        vars.append(&mut bound_context);
+                                        vars
+                                    })
                                 } else {
                                     Ok(Value::Function(ValueFunction {
+                                        bound_context: vec![],
                                         func: InterpreterFunctionDef::FunctionDef {
                                             name,
                                             def: func.clone(),
@@ -212,6 +220,7 @@ impl InterpreterContext {
                                     func(self, bound_variables)
                                 } else {
                                     Ok(Value::Function(ValueFunction {
+                                        bound_context: vec![],
                                         func: InterpreterFunctionDef::BuiltIn {
                                             name,
                                             arg_count,
@@ -226,6 +235,7 @@ impl InterpreterContext {
                 }
             }
             ProgramAST::FunctionDef(func_def) => Ok(Value::Function(ValueFunction {
+                bound_context: vec![],
                 func: InterpreterFunctionDef::FunctionDef {
                     name: "anonymous".to_owned(),
                     def: func_def,
@@ -236,18 +246,10 @@ impl InterpreterContext {
                 todo!()
             }
             ProgramAST::FunctionRef { token } => {
-                let mut found_value = None;
-                for context in self.function_context.iter() {
-                    for (name, value) in context.0.iter() {
-                        if *name == token {
-                            found_value = Some(value);
-                        }
-                    }
-                }
-                if let Some(value) = found_value {
-                    return Ok(value.clone());
-                }
-
+                match self.lookup(&token) {
+                    Some(s) => return Ok(s),
+                    None => {}
+                };
                 if let Some(value) = self.builtins.iter().find(|f| match f {
                     InterpreterFunctionDef::BuiltIn {
                         name,
@@ -257,6 +259,7 @@ impl InterpreterContext {
                     InterpreterFunctionDef::FunctionDef { name, def: _ } => *name == token,
                 }) {
                     return Ok(Value::Function(ValueFunction {
+                        bound_context: vec![],
                         func: value.clone(),
                         bound_variables: vec![],
                     }));
@@ -265,5 +268,16 @@ impl InterpreterContext {
             }
             ProgramAST::Value { value } => Ok(Value::Number(value)),
         }
+    }
+    pub fn lookup(&self, token: &String) -> Option<Value> {
+        let mut found_value = None;
+        for context in self.function_context.iter() {
+            for (name, value) in context.0.iter() {
+                if name == token {
+                    found_value = Some(value);
+                }
+            }
+        }
+        return found_value.map(|e| e.clone());
     }
 }

@@ -7,7 +7,10 @@ use ast_parser::{ExpressionAST, ParsingError, ProgramAST};
 use interpreter::InterpreterContext;
 use tokenizer::Tokenizer;
 
-use crate::{builtin::register_builtins, tokenizer::Token};
+use crate::{
+    builtin::{create_builtin_interpreter, register_builtins},
+    tokenizer::Token,
+};
 
 mod ast_parser;
 mod builtin;
@@ -37,8 +40,7 @@ fn main() -> Result<(), ParsingError> {
     // let str = "{1 2 3 4;}";
 
     // tokenizer.for_each(|e| println!("{:?}", e));
-    let mut interpreter = InterpreterContext::new();
-    register_builtins(&mut interpreter);
+    let mut interpreter = create_builtin_interpreter();
     if env::args().len() > 1 {
         return run_file(interpreter);
     }
