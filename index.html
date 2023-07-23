@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8" />
+    <title>StasisLang</title>
+    <link rel="stylesheet" href="https://unpkg.com/xterm@5.2.0/css/xterm.css" />
+    <script src="https://unpkg.com/xterm@5.2.0/lib/xterm.js"></script>
+    <script src="https://unpkg.com/xterm-addon-fit@0.7.0/lib/xterm-addon-fit.js"></script>
+    <style>
+    body {
+      width: 100vw;
+      height: 100vh;
+      margin: 0;
+      background-color: #141414;
+    }
+    #terminal {
+    position:absolute;
+    margin: 0;
+    left: 0;
+    top:0;
+      width: 100vw;
+      height: 100vh;
+    }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <script type="module">
+      const term = new Terminal({
+      convertEol: true,
+      cursorBlink: true,
+        theme: {
+          foreground: '#fff',
+          background: '#141414',
+        }
+      });
+      const fitAddon = new FitAddon.FitAddon();
+      term.loadAddon(fitAddon);
+      term.open(document.querySelector('#terminal'));
+      term.focus();
+      fitAddon.fit();
+      term.onResize(_ => fitAddon.fit());
+      addEventListener("resize", _ => fitAddon.fit());
+
+      const introText = `\x1B[1;3;32m
+     .-./\`)    ___    _   .---.    .-./\`)         ____..--'.-./\`) .-------.  
+     \\ '_ .').'   |  | |  | ,_|    \\ .-.')       |        |\\ .-.')\\  _(\`)_ \\ 
+    (_ (_) _)|   .'  | |,-./  )    / \`-' \\       |   .-'  '/ \`-' \\| (_ o._)| 
+      / .  \\ .'  '_  | |\\  '_ '\`)   \`-'\`"\`       |.-'.'   / \`-'\`"\`|  (_,_) / 
+ ___  |-'\`|  '   ( \\.-.| > (_)  )   .---.           /   _/  .---. |   '-.-'  
+|   | |   '  ' (\`. _\` /|(  .  .-'   |   |  _ _    .'._( )_  |   | |   |      
+|   \`-'  /   | (_ (_) _) \`-'\`-'|___ |   | ( \` ) .'  (_'o._) |   | |   |      
+ \\      /     \\ /  . \\ /  |        \\|   |(_{;}_)|    (_,_)| |   | /   )      
+  \`-..-'       \`-'\`-''   \`--------\`'---' (_,_) |_________| '---' \`---'      
+                                                                             
+      _            _            _ _ 
+     | |          (_)          | (_)
+  ___| |_ __ _ ___ _ ___    ___| |_ 
+ / __| __/ _\` / __| / __|  / __| | |
+ \\__ \\ || (_| \\__ \\ \\__ \\ | (__| | |
+ |___/\\__\\__,_|___/_|___/  \\___|_|_|
+
+For an explanation of the syntax go to github.com/dotjulia/stasis.
+
+Every line needs to parse to a function (eg. { + 1 2; });
+
+A new predefined function can be defined using ":" followed by the name (eg. : = { a0 a1 => not (a0 \`- a1);})
+
+See all predefined functions by executing the "helppredef" function like that: "{ helppredef 0; }"
+
+`;
+      import init, { test } from "./pkg/stasis.js";
+      (async _ => {
+        await init();
+        function sleep(ms) {
+          return new Promise(resolve => setTimeout(resolve, ms));
+        }
+        for (const line of introText.split('\n')) {
+          term.write(' ' + line + '\n');
+          await sleep(10);
+        }
+
+        let curr_line = '';
+        
+        term.prompt = (shouldRun) => {
+          if (shouldRun) {
+            term.write('\n');
+            term.write(test(curr_line));
+          }
+          term.write('\n $ ');
+        };
+
+        term.onKey(({key, domEvent: ev}) => {
+            const printable = !ev.altKey && !ev.altGraphKey && !ev.ctrlKey && !ev.metaKey;
+            if (ev.keyCode === 13 && !ev.shiftKey) {
+                term.prompt(true);
+                curr_line = '';
+            } else if (ev.keyCode === 13) {
+              curr_line += '\n';
+              term.write('\n');
+            } else if (ev.keyCode === 8 ) {
+                // Do not delete the prompt
+                if (curr_line.length > 0) {
+                  curr_line = curr_line.slice(0, -1);
+                  term.write('\b \b');
+                }
+            } else if (printable) {
+                curr_line += ev.key;
+                term.write(key);
+            }
+        });
+        term.prompt();
+     })();
+    </script>
+  </body>
+</html>
