@@ -136,10 +136,6 @@ pub enum ProgramAST {
         arg: Box<ProgramAST>,
     },
     FunctionDef(FunctionDef),
-    Assignment {
-        name: String,
-        value: Box<FunctionDef>,
-    },
     FunctionRef {
         token: String,
     },
@@ -167,34 +163,6 @@ impl ProgramAST {
             let curr_result = match first_item {
                 ExpressionAST::SubExpression(sub_expression) => {
                     Ok(Self::parse_expression(sub_expression)?)
-                    // let mut should_switch = false;
-                    // if let Some(next) = expr.peek() {
-                    //     match next {
-                    //         ExpressionAST::Terminal(t) => {
-                    //             if let Token::Token(token) = t {
-                    //                 if token.starts_with("`") {
-                    //                     should_switch = true;
-                    //                 }
-                    //             }
-                    //         }
-                    //         _ => {}
-                    //     }
-                    // }
-                    // if should_switch {
-                    //     Ok(ProgramAST::FunctionCall {
-                    //         arg: Box::from(Self::parse_expression(sub_expression)?),
-                    //         function: Box::from(Self::parse_expression_iter(expr)?),
-                    //     })
-                    // } else {
-                    //     if expr.peek().is_some() {
-                    //         Ok(ProgramAST::FunctionCall {
-                    //             function: Box::from(Self::parse_expression(sub_expression)?),
-                    //             arg: Box::from(Self::parse_expression_iter(expr)?),
-                    //         })
-                    //     } else {
-                    //         Ok(Self::parse_expression(sub_expression)?)
-                    //     }
-                    // }
                 }
                 ExpressionAST::CodeBlock(args, code_block) => {
                     Ok(ProgramAST::FunctionDef(FunctionDef {
@@ -294,9 +262,6 @@ impl ProgramAST {
             }
             ProgramAST::FunctionDef(def) => {
                 def.block.iter_mut().for_each(|e| e.finalize());
-            }
-            ProgramAST::Assignment { name: _, value } => {
-                value.block.iter_mut().for_each(|e| e.finalize());
             }
             ProgramAST::FunctionRef { token } => {
                 if token.starts_with("`") {

@@ -173,61 +173,27 @@ impl InterpreterContext {
                 let function_to_run = self.run(*function)?;
                 match function_to_run {
                     Value::Number(n) => Err(RuntimeError::ValueNotAFunction(n)),
-                    Value::Function(ValueFunction {
-                        func,
-                        mut bound_context,
-                        mut bound_variables,
-                    }) => {
-                        match func {
-                            InterpreterFunctionDef::FunctionDef { name, def: func } => {
-                                bound_variables.push(self.run(*arg)?);
-                                if bound_variables.len() >= func.arg_tokens.len() {
-                                    // call
-                                    self.run_func(func.clone(), {
-                                        let mut vars: Vec<(String, Value)> = bound_variables
-                                            .iter()
-                                            .enumerate()
-                                            .map(|(i, e)| {
-                                                (
-                                                    func.get_ith_arg_name(i)
-                                                        .unwrap_or("".to_owned())
-                                                        .clone(),
-                                                    e.clone(),
-                                                )
-                                            })
-                                            .collect();
-                                        vars.append(&mut bound_context);
-                                        vars
-                                    })
+                    Value::Function(mut value_function) => {
+                        match value_function.func.clone() {
+                            InterpreterFunctionDef::FunctionDef { name: _, def: func } => {
+                                value_function.bound_variables.push(self.run(*arg)?);
+                                if value_function.bound_variables.len() >= func.arg_tokens.len() {
+                                    // don't pass arguments since values are already bound
+                                    self.run_func_value(value_function, vec![])
                                 } else {
-                                    Ok(Value::Function(ValueFunction {
-                                        bound_context: vec![],
-                                        func: InterpreterFunctionDef::FunctionDef {
-                                            name,
-                                            def: func.clone(),
-                                        },
-                                        bound_variables,
-                                    }))
+                                    Ok(Value::Function(value_function))
                                 }
                             }
                             InterpreterFunctionDef::BuiltIn {
-                                name,
+                                name: _,
                                 arg_count,
                                 func,
                             } => {
-                                bound_variables.push(self.run(*arg)?);
-                                if bound_variables.len() >= arg_count {
-                                    func(self, bound_variables)
+                                value_function.bound_variables.push(self.run(*arg)?);
+                                if value_function.bound_variables.len() >= arg_count {
+                                    func(self, value_function.bound_variables)
                                 } else {
-                                    Ok(Value::Function(ValueFunction {
-                                        bound_context: vec![],
-                                        func: InterpreterFunctionDef::BuiltIn {
-                                            name,
-                                            arg_count,
-                                            func,
-                                        },
-                                        bound_variables,
-                                    }))
+                                    Ok(Value::Function(value_function))
                                 }
                             }
                         }
@@ -242,9 +208,6 @@ impl InterpreterContext {
                 },
                 bound_variables: vec![],
             })),
-            ProgramAST::Assignment { name, value } => {
-                todo!()
-            }
             ProgramAST::FunctionRef { token } => {
                 match self.lookup(&token) {
                     Some(s) => return Ok(s),
