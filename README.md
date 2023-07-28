@@ -1,11 +1,11 @@
-# Stasis Lang
+# Stayc Lang
 An interpreted toy language with minimal syntax.
 
 ## Syntax
 The syntax only consists of a small set of symbols $\Sigma=\\{$ { $, $} $, $( $, $) $, $=> $, $` $\\}$.
-Everything in stasis is either a function or a number.
+Everything in stayc is either a function or a number.
  ### Expressions
-All expressions in stasis consist of function calls and values. Values are number literals or function definitions (see below).
+All expressions in stayc consist of function calls and values. Values are number literals or function definitions (see below).
 A function can be called by giving it an argument like that: `function argument;` (eg `+ 1`).
 Functions which take no arguments still need to be given an argument to call them otherwise the expression
 just returns the function definition as a value (eg. `ret4` just returns 4. `ret4;` -> Function, `ret4 0;` -> 4).
@@ -115,7 +115,7 @@ Defining functions with `let` is also possible:
 ```
 
 ### `bind`
-References in stasis are evaluated once a function is executed. This means that a function only has access to it's parameters and nothing else if it's executed in a completely different context from where it was created.
+References in stayc are evaluated once a function is executed. This means that a function only has access to it's parameters and nothing else if it's executed in a completely different context from where it was created.
 ```
 {
   let {a;} { a0 => { a0;};}; // a is a function (with param a0) which returns a function which returns a0
