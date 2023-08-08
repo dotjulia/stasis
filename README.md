@@ -144,3 +144,42 @@ For example let's look at an implementation of `tuple`. Which returns a function
   print (ab 1); // 24
 }
 ```
+### Arrays
+Arrays of numbers can be created using the `[` function.
+```
+{
+  [ 1 2 3 4 ] `foreach { el => print el; };
+  // Number(1)
+  // Number(2)
+  // Number(3)
+  // Number(4)
+}
+```
+Arrays are not special syntax; instead `[` is just a function that returns a function which either accepts a number, appends it to the array and returns itself or accepts the `]` function and returns the array.
+
+An array is just a block of memory returned by `alloc`.
+```
+{
+  len (alloc 10); // Number(10)
+}
+```
+Here is the implementation of the `[` function:
+```
+{
+  let { [; } { __first[] => 
+    let {__mem[];} (alloc 1);
+    __mem[] `= __first[];
+    let { __[]inner; } { __el[] => 
+      if (number? __el[]) {
+        let {__mem[];} (__mem[] `append __el[]);
+        bind { __mem[]; __[]inner; } __[]inner;
+      } {
+        __mem[];
+      };
+    };
+    bind { __mem[]; __[]inner; } __[]inner;
+  };
+  let { ]; } { 0; };
+}
+```
+`append` can be found in `lib.st`
