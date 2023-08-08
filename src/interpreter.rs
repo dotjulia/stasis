@@ -112,6 +112,7 @@ impl InterpreterContext {
         &mut self,
         func: FunctionDef,
         args: Vec<(String, Value)>,
+        should_destroy_context: bool,
     ) -> Result<Value, RuntimeError> {
         let mut last_value = None;
         self.function_context
@@ -119,7 +120,9 @@ impl InterpreterContext {
         for s in func.block {
             last_value = Some(self.run(s)?);
         }
-        self.function_context.pop_back();
+        if should_destroy_context {
+            self.function_context.pop_back();
+        }
         last_value.ok_or(RuntimeError::EmptyFunction)
     }
 
@@ -127,9 +130,12 @@ impl InterpreterContext {
         &mut self,
         program: ProgramAST,
         args: Vec<(String, Value)>,
+        should_destroy_context: bool,
     ) -> Result<Value, RuntimeError> {
         match program {
-            ProgramAST::FunctionDef(func_def) => self.run_func(func_def, args),
+            ProgramAST::FunctionDef(func_def) => {
+                self.run_func(func_def, args, should_destroy_context)
+            }
             _ => Err(RuntimeError::ValueNotAFunction(0)),
         }
     }
@@ -146,24 +152,28 @@ impl InterpreterContext {
                 arg_count,
                 func: builtin_func,
             } => builtin_func(self, func.bound_variables),
-            InterpreterFunctionDef::FunctionDef { name, def } => self.run_func(def.clone(), {
-                let mut vars = func
-                    .bound_variables
-                    .iter()
-                    .enumerate()
-                    .map(|(i, e)| {
-                        (
-                            func.func
-                                .get_ith_arg_name(i)
-                                .unwrap_or("".to_owned())
-                                .clone(),
-                            e.clone(),
-                        )
-                    })
-                    .collect::<Vec<(String, Value)>>();
-                vars.append(&mut func.bound_context);
-                vars
-            }),
+            InterpreterFunctionDef::FunctionDef { name, def } => self.run_func(
+                def.clone(),
+                {
+                    let mut vars = func
+                        .bound_variables
+                        .iter()
+                        .enumerate()
+                        .map(|(i, e)| {
+                            (
+                                func.func
+                                    .get_ith_arg_name(i)
+                                    .unwrap_or("".to_owned())
+                                    .clone(),
+                                e.clone(),
+                            )
+                        })
+                        .collect::<Vec<(String, Value)>>();
+                    vars.append(&mut func.bound_context);
+                    vars
+                },
+                true,
+            ),
         }
     }
 

@@ -1,16 +1,15 @@
 use std::{
     env, fs,
     io::{BufRead, Write},
+    time::Instant,
 };
 
 use ast_parser::{ExpressionAST, ParsingError, ProgramAST};
+use clap::Parser;
 use interpreter::InterpreterContext;
 use tokenizer::Tokenizer;
 
-use crate::{
-    builtin::{create_builtin_interpreter, register_builtins},
-    tokenizer::Token,
-};
+use crate::{builtin::create_builtin_interpreter, tokenizer::Token};
 
 mod ast_parser;
 mod builtin;
@@ -18,38 +17,50 @@ mod interpreter;
 mod str_ext;
 mod tokenizer;
 
-fn run_file(mut interpreter: InterpreterContext) -> Result<(), ParsingError> {
-    let file = fs::read_to_string(env::args().skip(1).next().unwrap()).unwrap();
+fn run_file(interpreter: &mut InterpreterContext, file: String) -> Result<(), ParsingError> {
+    let file = fs::read_to_string(file).unwrap();
     let mut tokenizer = Tokenizer::new(&file);
     tokenizer.verify_syntax();
     let ast = ExpressionAST::parse(tokenizer).unwrap();
     let mut ast = ProgramAST::parse(ast)?;
     ast.finalize();
-    match interpreter.run_anonym_func(ast, vec![]) {
-        Ok(val) => println!("Program returned: {:?}", val),
+    let before = Instant::now();
+    match interpreter.run_anonym_func(ast, vec![], false) {
+        Ok(val) => println!("Program returned: {:?} in {:?}", val, before.elapsed()),
         Err(err) => println!("{:?}", err),
     }
     Ok(())
 }
 
-fn main() -> Result<(), ParsingError> {
-    // let str = "{ test (test `test) test { (test test {test; test;}); test; test; } test; blabla }";
-    // let str = "{{print 5; + 1 arg1;} 2;}";
-    // let str = "{(+ 1) `test;}";
-    // let str = "{{arg1 arg2 => + arg1 arg2;} 1 2;}";
-    // let str = "{1 2 3 4;}";
+#[derive(Parser, Debug)]
+#[command(author, version)]
+struct Arguments {
+    #[arg(short, long)]
+    run: Option<String>,
+    #[arg(short, long)]
+    preload: Option<String>,
+}
 
-    // tokenizer.for_each(|e| println!("{:?}", e));
+fn main() -> Result<(), ParsingError> {
     let mut interpreter = create_builtin_interpreter();
-    if env::args().len() > 1 {
-        return run_file(interpreter);
+    let args = Arguments::parse();
+
+    if args.run.is_some() {
+        return run_file(&mut interpreter, args.run.unwrap());
+    }
+
+    if args.preload.is_some() {
+        println!("{:?}", run_file(&mut interpreter, args.preload.unwrap()));
     }
 
     let stdin = std::io::stdin();
     print!("> ");
     std::io::stdout().flush().unwrap();
     for line in stdin.lock().lines() {
-        let line = line.unwrap();
+        let mut line = line.unwrap().trim().to_owned();
+        if !line.starts_with("{") {
+            line = "{".to_owned() + &line + ";}";
+        }
         let mut tokenizer = Tokenizer::new(&line);
         tokenizer.verify_syntax();
         let mut should_define_func = None;
@@ -84,6 +95,7 @@ fn main() -> Result<(), ParsingError> {
         };
         ast.finalize();
 
+        let before = Instant::now();
         if let Some(name) = should_define_func {
             match ast {
                 ProgramAST::FunctionDef(func) => interpreter.register_func(name, func),
@@ -93,8 +105,9 @@ fn main() -> Result<(), ParsingError> {
             }
         } else {
             println!(
-                "Return Value: {:?}",
-                interpreter.run_anonym_func(ast, vec![])
+                "Return Value: {:?}, evaluated in {:?}",
+                interpreter.run_anonym_func(ast, vec![], false),
+                before.elapsed()
             );
         }
         print!("> ");

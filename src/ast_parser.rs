@@ -289,16 +289,6 @@ impl ProgramAST {
                 }
                 print!("{}}}", " ".repeat(indentation * 2));
             }
-            ProgramAST::Assignment { name, value: def } => {
-                print!("{} := ", name);
-                print!("{{ {} =>\n", def.arg_tokens.join(" "));
-                for statement in &def.block {
-                    print!("{}", " ".repeat((indentation + 1) * 2));
-                    statement.print_ast_in(indentation + 1);
-                    print!(";\n")
-                }
-                print!("{}}}", " ".repeat(indentation * 2));
-            }
             ProgramAST::FunctionRef { token } => print!("{}", token),
             ProgramAST::Value { value } => print!("N({})", value),
         }
